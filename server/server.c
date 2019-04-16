@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #define MAX_NUM_CLIENTS 25
+#define RECV_FILE_BUFF_SIZE 512
 
 void *client_handler(void *socket);
 void sighandler(int);
@@ -83,33 +84,62 @@ int main(int argc , char *argv[])
     return 0;
 }
 
+// void *client_handler(void *socket)
+// {
+//     //cast the socket back to int
+//     int sock = *(int*)socket;
+
+//     char message[500];
+//     int READSIZE;  
+//     printf("Connection from client accepted: Socket: %d\n",sock);
+//     printf("client_handler called\n");
+
+//     while(1) {
+//         memset(message, 0, 500);
+//         READSIZE = recv(sock , message , 500 , 0);
+//         write(sock , message , strlen(message));
+//     }
+ 
+//     if(READSIZE == 0)
+//     {
+//         puts("Client disconnected");
+//         fflush(stdout);
+//     }
+//     else if(READSIZE == -1)
+//     {
+//         perror("read error");
+//     }
+// }
+
+
 void *client_handler(void *socket)
 {
     //cast the socket back to int
     int sock = *(int*)socket;
 
-    char message[500];
-    int READSIZE;  
-    printf("Connection from client accepted: Socket: %d\n",sock);
-    printf("client_handler called\n");
+    char file_buffer[RECV_FILE_BUFF_SIZE];
+    char *file_name = "/home/ronan/Documents/College/SystemsSoftware/AssignmentTwo/server/intranet/server_test.txt";
+    FILE *file_open = fopen(file_name, "w");
 
-    while(1) {
-        memset(message, 0, 500);
-        READSIZE = recv(sock , message , 500 , 0);
-        write(sock , message , strlen(message));
-    }
- 
-    if(READSIZE == 0)
+    if(file_open == NULL)
     {
-        puts("Client disconnected");
-        fflush(stdout);
+        printf("File %s Cannot be opened file on server.\n", file_name);
     }
-    else if(READSIZE == -1)
+    else 
     {
-        perror("read error");
+        bzero(file_buffer, RECV_FILE_BUFF_SIZE); 
+        int block_size = 0;
+        int counter = 0;
+        while((block_size = recv(sock, file_buffer, RECV_FILE_BUFF_SIZE, 0)) > 0) {
+            printf("Data Received %d = %d\n",counter,block_size);
+            int write_sz = fwrite(file_buffer, sizeof(char), block_size, file_open);
+            bzero(file_buffer, RECV_FILE_BUFF_SIZE);
+            counter++;
+        }
+
+        fclose(file_open);
     }
 }
-
 void sighandler(int signum) 
 {
    printf("Caught signal %d, closing...\n", signum);

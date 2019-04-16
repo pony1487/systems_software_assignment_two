@@ -3,7 +3,9 @@
 #include <string.h>    
 #include <sys/socket.h>
 #include <arpa/inet.h> 
-#include <unistd.h>    
+#include <unistd.h>  
+
+#define FILE_BUFFER_SIZE 512
  
 int main(int argc , char *argv[])
 {
@@ -25,8 +27,9 @@ int main(int argc , char *argv[])
         char filename[50], path[150];
         char file_buffer[512]; 
 	    bzero(file_buffer, 512); 
+        int block_size, counter =0;
 
-
+        //get the file name and path from cmd line args
         strcpy(filename,  argv[1]);
         strcpy(path, argv[2]);
 
@@ -50,7 +53,7 @@ int main(int argc , char *argv[])
             // }
         
             // fclose(fp);
-            
+
             //Create socket
             SID = socket(AF_INET , SOCK_STREAM , 0);
             if (SID == -1)
@@ -85,35 +88,21 @@ int main(int argc , char *argv[])
             // display welcome message
             printf("\nServer sent: %s\n",serverWelcomeMessage);
             
-            //keep communicating with server
-            while(1)
-            {                 
-                printf("\nEnter message : ");
-                scanf("%s" , clientMessage);
-                
-                //Send some data
-                if( send(SID , clientMessage , strlen(clientMessage) , 0) < 0)
+            while((block_size = fread(file_buffer, sizeof(char), FILE_BUFFER_SIZE, fp)) > 0) 
+            {
+                printf("Data Sent %d = %d\n",counter, block_size);
+                if(send(SID, file_buffer, block_size, 0) < 0) 
                 {
-                    printf("Send failed");
-                    return 1;
+                    exit(1);
                 }
-
-                //Receive a reply from the server
-                if( recv(SID , serverMessage , 500 , 0) < 0)
-                {
-                    printf("IO error");
-                    //break;
-                }
-                
-                puts("\nServer sent: ");
-                puts(serverMessage);
-
-                //clear previous message
-                memset(serverMessage, 0, 500);
-
+                bzero(file_buffer, FILE_BUFFER_SIZE);
+                counter++;
             }
-            
+
+            fclose(fp);
             close(SID);
+            
+            printf("\nProgram exiting...\n");
             return 0;
         }//end file open
     }//end argv check
