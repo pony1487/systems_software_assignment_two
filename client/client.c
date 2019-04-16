@@ -9,6 +9,7 @@ int main(int argc , char *argv[])
     int SID;
     struct sockaddr_in server;
     char clientMessage[500];
+    char serverWelcomeMessage[500];
     char serverMessage[500];
      
     //Create socket
@@ -34,10 +35,20 @@ int main(int argc , char *argv[])
     }
      
     printf("Connected to server ok!!\n");
+
+    memset(serverWelcomeMessage, 0, 500);
+    //Receive a welcome message from the server
+    if( recv(SID , serverWelcomeMessage , 500 , 0) < 0)
+    {
+        printf("IO error");
+    }
+    
+    // display welcome message
+    printf("\nServer sent: %s\n",serverWelcomeMessage);
      
     //keep communicating with server
     while(1)
-    {
+    {                 
         printf("\nEnter message : ");
         scanf("%s" , clientMessage);
          
@@ -47,16 +58,19 @@ int main(int argc , char *argv[])
             printf("Send failed");
             return 1;
         }
-         
+
         //Receive a reply from the server
         if( recv(SID , serverMessage , 500 , 0) < 0)
         {
             printf("IO error");
             //break;
         }
-         
+        
         puts("\nServer sent: ");
         puts(serverMessage);
+
+        //clear previous message
+        memset(serverMessage, 0, 500);
 
     }
      

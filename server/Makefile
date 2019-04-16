@@ -2,10 +2,10 @@ CC=gcc
 objects = server.o
 
 assignment_two_server : $(objects)
-	$(CC) -o assignment_two_server $(objects)
+	$(CC) -lpthread -o assignment_two_server $(objects)
 
-server.o : server.c
-	$(CC) -c server.c
+server.o : server.c 
+	$(CC) -c server.c 
 
 
 clean:

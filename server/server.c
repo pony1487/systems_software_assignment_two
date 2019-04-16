@@ -4,19 +4,25 @@
 #include <arpa/inet.h>  //for inet_addr
 #include <unistd.h>     //for write
 #include <pthread.h>
+
+#define MAX_NUM_CLIENTS 25
+
+void *client_handler(void *socket);
  
 int main(int argc , char *argv[])
 {
-    pthread_t thread1, thread2;
-    
+    // Thread stuff
+    pthread_t threads[MAX_NUM_CLIENTS];
+    int client_count = 0;
+
     int s; // socket descriptor
     int cs; // Client Socket
     int connSize; // Size of struct 
-    int READSIZE;  // Size of sockaddr_in for client connection
 
     struct sockaddr_in server , client;
-    char message[500];
      
+    printf("Server started....\n");
+
     //Create socket
     s = socket(AF_INET , SOCK_STREAM , 0);
     if (s == -1)
@@ -49,29 +55,57 @@ int main(int argc , char *argv[])
     connSize = sizeof(struct sockaddr_in);
      
     //accept connection from an incoming client
-    cs = accept(s, (struct sockaddr *)&client, (socklen_t*)&connSize);
+    // cs = accept(s, (struct sockaddr *)&client, (socklen_t*)&connSize);
+    // if (cs < 0)
+    // {
+    //     perror("Can't establish connection");
+    //     return 1;
+    // } else {
+    // 	printf("Connection from client accepted!!");
+    // }
+
+    while(cs = accept(s, (struct sockaddr *)&client, (socklen_t*)&connSize))
+    {
+        char *welcome_message = "Welcome.\n";
+        write(cs , welcome_message , strlen(welcome_message));
+
+        if( pthread_create( &threads[client_count], NULL ,  client_handler , (void*) &cs) < 0)
+        {
+            perror("could not create thread");
+            return 1;
+        }
+        else
+        {
+            client_count++;
+            printf("\nNumber of clients: %d\n",client_count);
+        }
+        
+    }
+
     if (cs < 0)
     {
         perror("Can't establish connection");
         return 1;
-    } else {
-    	printf("Connection from client accepted!!");
-    }
-     
-    //Receive message from client
-    /*while( (READSIZE = recv(cs , message , 1999 , 0)) > 0 )
-    {
-        //Send the message back to client
-        write(cs , message , strlen(message));
-    }*/
+    } 
+              
+    return 0;
+}
+
+void *client_handler(void *socket)
+{
+    //cast the socket
+    int sock = *(int*)socket;
+
     
+    char message[500];
+    int READSIZE;  
+    printf("Connection from client accepted: Socket: %d\n",sock);
+    printf("client_handler called\n");
+
     while(1) {
         memset(message, 0, 500);
-        //READSIZE = read(cs,message,500);
-        READSIZE = recv(cs , message , 2000 , 0);
-        printf("Client said: %s\n", message);
-        //puts(message);
-        write(cs , "What ??" , strlen("What ??"));
+        READSIZE = recv(sock , message , 500 , 0);
+        write(sock , message , strlen(message));
     }
  
     if(READSIZE == 0)
@@ -83,6 +117,26 @@ int main(int argc , char *argv[])
     {
         perror("read error");
     }
-     
-    return 0;
+
+    // while( (READSIZE = recv(sock , message , 2000 , 0)) > 0 )
+    // {
+    //     printf("Client said: %s\n", message);
+    //     write(sock , "What ??\n" , strlen("What ??"));
+    // }
+
+    // memset(message, 0, 500);
+    // READSIZE = recv(sock , message , 2000 , 0);
+    // printf("READSIZE: %d\n",READSIZE);
+    // printf("Client said: %s\n", message);
+    // write(sock , "What ??\n" , strlen("What ??"));
+    
+    // if(READSIZE == 0)
+    // {
+    //     puts("Client disconnected");
+    //     fflush(stdout);
+    // }
+    // else if(READSIZE == -1)
+    // {
+    //     perror("read error");
+    // }
 }
