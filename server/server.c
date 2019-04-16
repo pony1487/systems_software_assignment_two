@@ -4,13 +4,18 @@
 #include <arpa/inet.h>  //for inet_addr
 #include <unistd.h>     //for write
 #include <pthread.h>
+#include <signal.h>
+#include <stdlib.h>
 
 #define MAX_NUM_CLIENTS 25
 
 void *client_handler(void *socket);
+void sighandler(int);
  
 int main(int argc , char *argv[])
 {
+    signal(SIGINT, sighandler);
+
     // Thread stuff
     pthread_t threads[MAX_NUM_CLIENTS];
     int client_count = 0;
@@ -27,25 +32,23 @@ int main(int argc , char *argv[])
     s = socket(AF_INET , SOCK_STREAM , 0);
     if (s == -1)
     {
-        printf("Could not create socket");
+        printf("Could not create socket\n");
     } else {
-    	printf("Socket Successfully Created!!");
+    	printf("Socket Successfully Created!!\n");
     } 
 
     // set sockaddr_in variables
     server.sin_port = htons( 8082 ); // Set the prot for communication
     server.sin_family = AF_INET; // Use IPV4 protocol
     server.sin_addr.s_addr = INADDR_ANY; 
-    // When INADDR_ANY is specified in the bind call, the  socket will  be bound to all local interfaces. 
-    
-     
+         
     //Bind
     if( bind(s,(struct sockaddr *)&server , sizeof(server)) < 0)
     {
-        perror("Bind issue!!");
+        perror("Bind issue!!\n");
         return 1;
     } else {
-    	printf("Bind Complete!!");
+    	printf("Bind Complete!!\n");
     }
      
     //Listen for a conection
@@ -54,16 +57,6 @@ int main(int argc , char *argv[])
     printf("Waiting for incoming connection from Client>>");
     connSize = sizeof(struct sockaddr_in);
      
-    //accept connection from an incoming client
-    // cs = accept(s, (struct sockaddr *)&client, (socklen_t*)&connSize);
-    // if (cs < 0)
-    // {
-    //     perror("Can't establish connection");
-    //     return 1;
-    // } else {
-    // 	printf("Connection from client accepted!!");
-    // }
-
     while(cs = accept(s, (struct sockaddr *)&client, (socklen_t*)&connSize))
     {
         char *welcome_message = "Welcome.\n";
@@ -78,8 +71,7 @@ int main(int argc , char *argv[])
         {
             client_count++;
             printf("\nNumber of clients: %d\n",client_count);
-        }
-        
+        }   
     }
 
     if (cs < 0)
@@ -93,10 +85,9 @@ int main(int argc , char *argv[])
 
 void *client_handler(void *socket)
 {
-    //cast the socket
+    //cast the socket back to int
     int sock = *(int*)socket;
 
-    
     char message[500];
     int READSIZE;  
     printf("Connection from client accepted: Socket: %d\n",sock);
@@ -117,26 +108,10 @@ void *client_handler(void *socket)
     {
         perror("read error");
     }
+}
 
-    // while( (READSIZE = recv(sock , message , 2000 , 0)) > 0 )
-    // {
-    //     printf("Client said: %s\n", message);
-    //     write(sock , "What ??\n" , strlen("What ??"));
-    // }
-
-    // memset(message, 0, 500);
-    // READSIZE = recv(sock , message , 2000 , 0);
-    // printf("READSIZE: %d\n",READSIZE);
-    // printf("Client said: %s\n", message);
-    // write(sock , "What ??\n" , strlen("What ??"));
-    
-    // if(READSIZE == 0)
-    // {
-    //     puts("Client disconnected");
-    //     fflush(stdout);
-    // }
-    // else if(READSIZE == -1)
-    // {
-    //     perror("read error");
-    // }
+void sighandler(int signum) 
+{
+   printf("Caught signal %d, closing...\n", signum);
+   exit(1);
 }
