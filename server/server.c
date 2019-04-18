@@ -9,6 +9,18 @@
 
 #define MAX_NUM_CLIENTS 25
 #define RECV_FILE_BUFF_SIZE 512
+#define UID_SIZE 10
+#define GID_SIZE 10
+#define FILENAME_SIZE 50
+
+
+
+typedef struct message{
+    char uid[UID_SIZE];
+    char gid[GID_SIZE];
+    char filename[FILENAME_SIZE]; 
+}client_message;
+
 
 void *client_handler(void *socket);
 void sighandler(int);
@@ -60,9 +72,6 @@ int main(int argc , char *argv[])
      
     while(cs = accept(s, (struct sockaddr *)&client, (socklen_t*)&connSize))
     {
-        char *welcome_message = "Welcome.\n";
-        write(cs , welcome_message , strlen(welcome_message));
-
         if( pthread_create( &threads[client_count], NULL ,  client_handler , (void*) &cs) < 0)
         {
             perror("could not create thread");
@@ -84,62 +93,84 @@ int main(int argc , char *argv[])
     return 0;
 }
 
-// void *client_handler(void *socket)
-// {
-//     //cast the socket back to int
-//     int sock = *(int*)socket;
-
-//     char message[500];
-//     int READSIZE;  
-//     printf("Connection from client accepted: Socket: %d\n",sock);
-//     printf("client_handler called\n");
-
-//     while(1) {
-//         memset(message, 0, 500);
-//         READSIZE = recv(sock , message , 500 , 0);
-//         write(sock , message , strlen(message));
-//     }
- 
-//     if(READSIZE == 0)
-//     {
-//         puts("Client disconnected");
-//         fflush(stdout);
-//     }
-//     else if(READSIZE == -1)
-//     {
-//         perror("read error");
-//     }
-// }
-
-
 void *client_handler(void *socket)
 {
     //cast the socket back to int
     int sock = *(int*)socket;
 
-    char file_buffer[RECV_FILE_BUFF_SIZE];
-    char *file_name = "/home/ronan/Documents/College/SystemsSoftware/AssignmentTwo/server/intranet/server_test.txt";
-    FILE *file_open = fopen(file_name, "w");
+    char message[500];
+    int READSIZE;
+    int str_cmp_ret;
 
-    if(file_open == NULL)
-    {
-        printf("File %s Cannot be opened file on server.\n", file_name);
-    }
-    else 
-    {
-        bzero(file_buffer, RECV_FILE_BUFF_SIZE); 
-        int block_size = 0;
-        int counter = 0;
-        while((block_size = recv(sock, file_buffer, RECV_FILE_BUFF_SIZE, 0)) > 0) {
-            printf("Data Received %d = %d\n",counter,block_size);
-            int write_sz = fwrite(file_buffer, sizeof(char), block_size, file_open);
-            bzero(file_buffer, RECV_FILE_BUFF_SIZE);
-            counter++;
+    printf("Connection from client accepted: Socket: %d\n",sock);
+    printf("client_handler called\n");
+
+    while(1) {
+        memset(message, 0, 500);
+        READSIZE = recv(sock , message , 500 , 0);
+
+        str_cmp_ret = strcmp(message, "init");
+
+        if(str_cmp_ret == 0) 
+        {
+            printf("Server: %s message recieved\n",message);
+            memset(message, 0, 500);
+            write(sock , "success" , strlen("success"));
+
+            //recieve client struct
+            client_message received_message;
+            int size;
+
+            if( (size = recv ( sock, (void*)&received_message, sizeof(client_message), 0)) >= 0)
+            {
+                printf("msg.filename: %s\n",received_message.filename);
+                printf("msg.uid: %s\n",received_message.uid);
+                printf("msg.gid: %s\n",received_message.gid);
+            }
         }
-
-        fclose(file_open);
+    }
+ 
+    if(READSIZE == 0)
+    {
+        puts("Client disconnected");
+        fflush(stdout);
+    }
+    else if(READSIZE == -1)
+    {
+        perror("read error");
     }
 }
+
+
+// void *client_handler(void *socket)
+// {
+//     //cast the socket back to int
+//     int sock = *(int*)socket;
+
+//     char file_buffer[RECV_FILE_BUFF_SIZE];
+//     char *file_name = "/home/ronan/Documents/College/SystemsSoftware/AssignmentTwo/server/intranet/server_test.txt";
+//     FILE *file_open = fopen(file_name, "w");
+
+//     if(file_open == NULL)
+//     {
+//         printf("File %s Cannot be opened file on server.\n", file_name);
+//     }
+//     else 
+//     {
+//         bzero(file_buffer, RECV_FILE_BUFF_SIZE); 
+//         int block_size = 0;
+//         int counter = 0;
+//         while((block_size = recv(sock, file_buffer, RECV_FILE_BUFF_SIZE, 0)) > 0) {
+//             printf("Data Received %d = %d\n",counter,block_size);
+//             int write_sz = fwrite(file_buffer, sizeof(char), block_size, file_open);
+//             bzero(file_buffer, RECV_FILE_BUFF_SIZE);
+//             counter++;
+//         }
+
+//         fclose(file_open);
+//     }
+// }
+
 void sighandler(int signum) 
 {
    printf("Caught signal %d, closing...\n", signum);
