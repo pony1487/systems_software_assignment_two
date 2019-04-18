@@ -54,10 +54,6 @@ int main(int argc , char *argv[])
         char* uid_as_str = int_to_string(uid);
         char* gid_as_str = int_to_string(gid);
         
-        printf("%s\n",uid_as_str);
-        printf("%s\n",gid_as_str);
-
-
         printf("This process is associated with UID: %d and GID: %d\n",uid,gid);
 
         //get the file name and path from cmd line args
@@ -113,29 +109,35 @@ int main(int argc , char *argv[])
             
             while(1)
             {    
-                //init the transfer process
-                if(send(SID, "init", sizeof("init"), 0) < 0) 
+                //init the transfer process. Send the clients information stored in the message structure     
+                int nbytes = 0;
+                if ((nbytes = write(SID, &msg, sizeof(msg)) != sizeof(msg)))
                 {
-                    perror("Could not send uid!");
-                    exit(1);
+                    perror("error writing msg struct");
+                    exit(EXIT_FAILURE);
                 }
 
+                //Receive a reply from the server
                 if( recv(SID , serverMessage , 500 , 0) < 0)
                 {
                     printf("IO error");
                 }
 
-                //int ret = strcmp(serverMessage, "success");
+                int ret = strcmp(serverMessage, "success");
 
-                if(strcmp(serverMessage, "success") == 0) {
-                    printf("Server sent: %s\n",serverMessage);
+                if(ret == 0) {
+                    printf("Server init: %s\n",serverMessage);
                     memset(serverMessage, 0, 500);
-                      
-                    int nbytes = 0;
-                    if ((nbytes = write(SID, &msg, sizeof(msg)) != sizeof(msg)))
+
+                    while((block_size = fread(file_buffer, sizeof(char), FILE_BUFFER_SIZE, fp)) > 0) 
                     {
-                        perror("error writing msg struct");
-                        exit(EXIT_FAILURE);
+                        printf("Data Sent %d = %d\n",counter, block_size);
+                        if(send(SID, file_buffer, block_size, 0) < 0) 
+                        {
+                            exit(1);
+                        }
+                        bzero(file_buffer, FILE_BUFFER_SIZE);
+                        counter++;
                     }
 
                     break;

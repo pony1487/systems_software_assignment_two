@@ -106,39 +106,51 @@ void *client_handler(void *socket)
     printf("client_handler called\n");
 
     while(1) {
-        memset(message, 0, 500);
-        READSIZE = recv(sock , message , 500 , 0);
+        //recieve client struct
+        client_message received_message;
+        int size;
 
-        str_cmp_ret = strcmp(message, "init");
-
-        if(str_cmp_ret == 0) 
+        if( (size = recv ( sock, (void*)&received_message, sizeof(client_message), 0)) >= 0)
         {
-            printf("Server: %s message recieved\n",message);
-            memset(message, 0, 500);
+            printf("msg.filename: %s\n",received_message.filename);
+            printf("msg.uid: %s\n",received_message.uid);
+            printf("msg.gid: %s\n",received_message.gid);
+
             write(sock , "success" , strlen("success"));
 
-            //recieve client struct
-            client_message received_message;
-            int size;
+            char file_buffer[RECV_FILE_BUFF_SIZE];
+            char *file_name = "/home/ronan/Documents/College/SystemsSoftware/AssignmentTwo/server/intranet/server_test.txt";
+            FILE *file_open = fopen(file_name, "w");
 
-            if( (size = recv ( sock, (void*)&received_message, sizeof(client_message), 0)) >= 0)
+            if(file_open == NULL)
             {
-                printf("msg.filename: %s\n",received_message.filename);
-                printf("msg.uid: %s\n",received_message.uid);
-                printf("msg.gid: %s\n",received_message.gid);
+                printf("File %s Cannot be opened file on server.\n", file_name);
             }
+            else 
+            {
+                bzero(file_buffer, RECV_FILE_BUFF_SIZE); 
+                int block_size = 0;
+                int counter = 0;
+                while((block_size = recv(sock, file_buffer, RECV_FILE_BUFF_SIZE, 0)) > 0) {
+                    printf("Data Received %d = %d\n",counter,block_size);
+                    int write_sz = fwrite(file_buffer, sizeof(char), block_size, file_open);
+                    bzero(file_buffer, RECV_FILE_BUFF_SIZE);
+                    counter++;
+                }
+
+                fclose(file_open);
+            }
+
+            break;
         }
+        else if(size == -1)
+        {
+            perror("read error");
+        }
+
+
     }
  
-    if(READSIZE == 0)
-    {
-        puts("Client disconnected");
-        fflush(stdout);
-    }
-    else if(READSIZE == -1)
-    {
-        perror("read error");
-    }
 }
 
 
