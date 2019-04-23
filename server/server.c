@@ -6,11 +6,14 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 #define MAX_NUM_CLIENTS 25
 #define RECV_FILE_BUFF_SIZE 512
 #define UID_SIZE 10
 #define GID_SIZE 10
+#define UEID_SIZE 10
+#define GEID_SIZE 10
 #define FILENAME_SIZE 50
 
 
@@ -18,12 +21,15 @@
 typedef struct message{
     char uid[UID_SIZE];
     char gid[GID_SIZE];
+    char ueid[UEID_SIZE];
+    char geid[GEID_SIZE];
     char filename[FILENAME_SIZE]; 
 }client_message;
 
 
 void *client_handler(void *socket);
 void sighandler(int);
+void check_client_permissions(char*,char*);
  
 int main(int argc , char *argv[])
 {
@@ -95,6 +101,24 @@ int main(int argc , char *argv[])
 
 void *client_handler(void *socket)
 {
+    //clients ids
+    uid_t client_uid;
+    gid_t client_gid;
+    uid_t client_ueid;
+    uid_t client_geid;
+
+    //get servers id's
+    uid_t server_uid = getuid();
+    gid_t server_gid = getgid();
+    uid_t server_ueid = geteuid();
+    uid_t server_geid = getegid();
+
+    printf("-----------------------------------\n");
+    printf("This server thread is associated with UID: %d and GID: %d\n",server_uid,server_gid);
+    printf("This server thread is associated with UEID: %d and GEID: %d\n",server_ueid,server_geid);
+    printf("-----------------------------------\n");
+
+
     //cast the socket back to int
     int sock = *(int*)socket;
 
@@ -113,13 +137,50 @@ void *client_handler(void *socket)
         if( (size = recv ( sock, (void*)&received_message, sizeof(client_message), 0)) >= 0)
         {
             printf("msg.filename: %s\n",received_message.filename);
-            printf("msg.uid: %s\n",received_message.uid);
-            printf("msg.gid: %s\n",received_message.gid);
+            printf("clients uid: %s\n",received_message.uid);
+            printf("clients gid: %s\n",received_message.gid);
+            printf("clients ueid: %s\n",received_message.ueid);
+            printf("clients geid: %s\n",received_message.geid);
 
             write(sock , "success" , strlen("success"));
+            //store clients ids
+            client_uid = atoi(received_message.uid);
+            client_gid = atoi(received_message.gid);
+            client_ueid = atoi(received_message.ueid);
+            client_geid = atoi(received_message.ueid);
+
+            //change to the clients id and try to execute the transfer
+            if(setregid(client_gid,server_uid) < 0)
+            {
+                perror("cannot change gid");
+                exit(EXIT_FAILURE);
+            }
+
+            if(setreuid(client_uid,server_uid) < 0)
+            {
+                perror("cannot change uid");
+                exit(EXIT_FAILURE);
+            }
+
+            if(seteuid(client_uid) < 0)
+            {
+                perror("seteuid(server_uid)");
+                exit(EXIT_FAILURE);
+            }
+
+            if(setegid(client_uid) < 0)
+            {
+                perror("setegid(server_uid)");
+                exit(EXIT_FAILURE);
+            }
+
+            printf("User id: %d\n",getuid());
+            printf("Group id: %d\n",getgid());
+            printf("Effective User id: %d\n",geteuid());
+            printf("Effective Group id: %d\n",getegid());
 
             char file_buffer[RECV_FILE_BUFF_SIZE];
-            char *file_name = "/home/ronan/Documents/College/SystemsSoftware/AssignmentTwo/server/intranet/server_test.txt";
+            char *file_name = "/home/ronan/Documents/College/SystemsSoftware/AssignmentTwo/server/intranet/Sales/sales_test.txt";
             FILE *file_open = fopen(file_name, "w");
 
             if(file_open == NULL)
@@ -139,6 +200,8 @@ void *client_handler(void *socket)
                 }
 
                 fclose(file_open);
+                printf("-----------------------------------\n");
+
             }
 
             break;
@@ -153,35 +216,10 @@ void *client_handler(void *socket)
  
 }
 
+void check_client_permissions(char *uid,char *gid)
+{
 
-// void *client_handler(void *socket)
-// {
-//     //cast the socket back to int
-//     int sock = *(int*)socket;
-
-//     char file_buffer[RECV_FILE_BUFF_SIZE];
-//     char *file_name = "/home/ronan/Documents/College/SystemsSoftware/AssignmentTwo/server/intranet/server_test.txt";
-//     FILE *file_open = fopen(file_name, "w");
-
-//     if(file_open == NULL)
-//     {
-//         printf("File %s Cannot be opened file on server.\n", file_name);
-//     }
-//     else 
-//     {
-//         bzero(file_buffer, RECV_FILE_BUFF_SIZE); 
-//         int block_size = 0;
-//         int counter = 0;
-//         while((block_size = recv(sock, file_buffer, RECV_FILE_BUFF_SIZE, 0)) > 0) {
-//             printf("Data Received %d = %d\n",counter,block_size);
-//             int write_sz = fwrite(file_buffer, sizeof(char), block_size, file_open);
-//             bzero(file_buffer, RECV_FILE_BUFF_SIZE);
-//             counter++;
-//         }
-
-//         fclose(file_open);
-//     }
-// }
+}
 
 void sighandler(int signum) 
 {

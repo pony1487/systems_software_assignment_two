@@ -9,12 +9,16 @@
 #define FILE_BUFFER_SIZE 512
 #define UID_SIZE 10
 #define GID_SIZE 10
+#define UEID_SIZE 10
+#define GEID_SIZE 10
 #define FILENAME_SIZE 50
 
 
 typedef struct message{
     char uid[UID_SIZE];
     char gid[GID_SIZE];
+    char ueid[UEID_SIZE];
+    char geid[GEID_SIZE];
     char filename[FILENAME_SIZE]; 
 }client_message;
 
@@ -24,14 +28,6 @@ char * int_to_string(int id);
  
 int main(int argc , char *argv[])
 {
-    int SID;
-    struct sockaddr_in server;
-    char clientMessage[500];
-    char serverWelcomeMessage[500];
-    char serverMessage[500];
-
-    char file_read_char;
-
     if(argc != 3)
     {
         printf("Exiting!!! Usage: filename pathname\n");
@@ -39,22 +35,32 @@ int main(int argc , char *argv[])
     }
     else
     {
+        int SID;
+        struct sockaddr_in server;
+        char clientMessage[500];
+        char serverMessage[500];
+
         client_message msg;
         
         char filename[50], path[150];
         char file_buffer[512]; 
 	    bzero(file_buffer, 512); 
-        int block_size, counter =0;
+        int block_size, counter = 0;
 
         //get users info
-        uid_t uid = geteuid();
-        gid_t gid = getegid();
+        uid_t uid = getuid();
+        gid_t gid = getgid();
+        uid_t ueid = geteuid();
+        uid_t geid = getegid();
 
-        //
+        //convert int to string so it can be sent to server
         char* uid_as_str = int_to_string(uid);
         char* gid_as_str = int_to_string(gid);
+        char* ueid_as_str = int_to_string(ueid);
+        char* geid_as_str = int_to_string(geid);
         
         printf("This process is associated with UID: %d and GID: %d\n",uid,gid);
+        printf("This process is associated with UEID: %d and GEID: %d\n",ueid,geid);
 
         //get the file name and path from cmd line args
         strcpy(filename,  argv[1]);
@@ -64,10 +70,8 @@ int main(int argc , char *argv[])
         strcpy(msg.filename,argv[1]);
         strcpy(msg.uid,uid_as_str);
         strcpy(msg.gid,gid_as_str);
-
-        printf("msg.filename: %s\n",msg.filename);
-        printf("msg.uid: %s\n",msg.uid);
-        printf("msg.gid: %s\n",msg.gid);
+        strcpy(msg.ueid,ueid_as_str);
+        strcpy(msg.geid,geid_as_str);
 
         //create the path to filename provided
         strcat(path, filename);
@@ -97,7 +101,6 @@ int main(int argc , char *argv[])
             server.sin_addr.s_addr = inet_addr("127.0.0.1"); // Server IP
             server.sin_family = AF_INET; // IPV4 protocol
             
-        
             //Connect to server
             if (connect(SID , (struct sockaddr *)&server , sizeof(server)) < 0)
             {
@@ -125,7 +128,8 @@ int main(int argc , char *argv[])
 
                 int ret = strcmp(serverMessage, "success");
 
-                if(ret == 0) {
+                if(ret == 0) 
+                {
                     printf("Server init: %s\n",serverMessage);
                     memset(serverMessage, 0, 500);
 
@@ -141,21 +145,14 @@ int main(int argc , char *argv[])
                     }
 
                     break;
+                }
+                else
+                {
+                    printf("Server init not successful\n");
                 } 
             }
 
-            
-            // while((block_size = fread(file_buffer, sizeof(char), FILE_BUFFER_SIZE, fp)) > 0) 
-            // {
-            //     printf("Data Sent %d = %d\n",counter, block_size);
-            //     if(send(SID, file_buffer, block_size, 0) < 0) 
-            //     {
-            //         exit(1);
-            //     }
-            //     bzero(file_buffer, FILE_BUFFER_SIZE);
-            //     counter++;
-            // }
-
+            //Clean up
             fclose(fp);
             close(SID);
             
