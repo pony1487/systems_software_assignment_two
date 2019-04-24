@@ -7,6 +7,8 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <pwd.h>
+#include <grp.h>
 
 #define MAX_NUM_CLIENTS 25
 #define RECV_FILE_BUFF_SIZE 512
@@ -30,6 +32,7 @@ typedef struct message{
 void *client_handler(void *socket);
 void sighandler(int);
 void check_client_permissions(char*,char*);
+char *get_username_from_uid(gid_t);
  
 int main(int argc , char *argv[])
 {
@@ -107,6 +110,12 @@ void *client_handler(void *socket)
     uid_t client_ueid;
     uid_t client_geid;
 
+    gid_t supp_groups[] = {};
+
+    int ngroups = 10;
+    gid_t *groups;
+    groups = malloc(ngroups * sizeof(gid_t));
+
     //get servers id's
     uid_t server_uid = getuid();
     gid_t server_gid = getgid();
@@ -149,30 +158,33 @@ void *client_handler(void *socket)
             client_ueid = atoi(received_message.ueid);
             client_geid = atoi(received_message.ueid);
 
+            const char *username = get_username_from_uid(client_uid);
+
+            printf("-----------------------------------\n");            
+            printf("Username: %s\n",username);
+
+            if(getgrouplist(username,client_uid,groups,&ngroups) == -1)
+            {
+                perror("Could not get groups");
+            }
+
+            printf("Group List:\n");
+            for(int i = 0; i < ngroups; i++)
+            {
+                supp_groups[i] = groups[i];
+                printf("%d\n",supp_groups[i]);
+            }
+
+            printf("-----------------------------------\n");
+
+
             //change to the clients id and try to execute the transfer
-            if(setregid(client_gid,server_uid) < 0)
-            {
-                perror("cannot change gid");
-                exit(EXIT_FAILURE);
-            }
+            setgroups(ngroups,supp_groups);
 
-            if(setreuid(client_uid,server_uid) < 0)
-            {
-                perror("cannot change uid");
-                exit(EXIT_FAILURE);
-            }
-
-            if(seteuid(client_uid) < 0)
-            {
-                perror("seteuid(server_uid)");
-                exit(EXIT_FAILURE);
-            }
-
-            if(setegid(client_uid) < 0)
-            {
-                perror("setegid(server_uid)");
-                exit(EXIT_FAILURE);
-            }
+            setreuid(client_uid,server_uid);
+            setregid(client_gid,server_uid);
+            seteuid(client_uid);
+            setegid(client_uid);
 
             printf("User id: %d\n",getuid());
             printf("Group id: %d\n",getgid());
@@ -180,12 +192,12 @@ void *client_handler(void *socket)
             printf("Effective Group id: %d\n",getegid());
 
             char file_buffer[RECV_FILE_BUFF_SIZE];
-            char *file_name = "/home/ronan/Documents/College/SystemsSoftware/AssignmentTwo/server/intranet/Sales/sales_test.txt";
+            char file_name[] = "/home/ronan/Documents/College/SystemsSoftware/AssignmentTwo/server/intranet/Marketing/test_test.txt";
             FILE *file_open = fopen(file_name, "w");
 
             if(file_open == NULL)
             {
-                printf("File %s Cannot be opened file on server.\n", file_name);
+                perror("File Cannot be opened file on server.");
             }
             else 
             {
@@ -204,6 +216,18 @@ void *client_handler(void *socket)
 
             }
 
+            //switch back to root
+            seteuid(server_uid);
+            setegid(server_uid);
+            setreuid(server_uid,client_uid);
+            setregid(server_uid,client_gid);
+
+            printf("Back to root\n");
+            printf("User id: %d\n",getuid());
+            printf("Group id: %d\n",getgid());
+            printf("Effective User id: %d\n",geteuid());
+            printf("Effective Group id: %d\n",getegid());
+
             break;
         }
         else if(size == -1)
@@ -214,6 +238,20 @@ void *client_handler(void *socket)
 
     }
  
+}
+
+char *get_username_from_uid(gid_t uid)
+{
+    struct passwd *pw;
+    pw = getpwuid(uid);
+    if(pw != NULL)
+    {
+        return pw->pw_name;
+    }
+    else
+    {
+        return "no user name";
+    } 
 }
 
 void check_client_permissions(char *uid,char *gid)
