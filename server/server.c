@@ -181,10 +181,35 @@ void *client_handler(void *socket)
             //change to the clients id and try to execute the transfer
             setgroups(ngroups,supp_groups);
 
-            setreuid(client_uid,server_uid);
-            setregid(client_gid,server_uid);
-            seteuid(client_uid);
-            setegid(client_uid);
+            // the below fails
+            // setreuid(client_uid,server_uid);
+            // setregid(client_gid,server_uid);
+            // seteuid(client_uid);
+            // setegid(client_uid);
+
+            if(setreuid(client_uid,server_uid) < 0 )
+            {
+                perror("could not change ids: setreuid()");
+                exit(EXIT_FAILURE);  
+            }
+
+            if(setregid(client_uid,server_uid) < 0)
+            {
+                perror("could not change ids: setregid()");
+                exit(EXIT_FAILURE);  
+            }
+
+            if(seteuid(client_uid) < 0)
+            {  
+                perror("could not change ids: seteuid()");
+                exit(EXIT_FAILURE);  
+            }
+            if(setegid(client_uid) < 0)
+            {
+                perror("could not change ids: setegid()");
+                exit(EXIT_FAILURE);  
+            }
+
 
             printf("User id: %d\n",getuid());
             printf("Group id: %d\n",getgid());
@@ -217,10 +242,31 @@ void *client_handler(void *socket)
             }
 
             //switch back to root
-            seteuid(server_uid);
-            setegid(server_uid);
-            setreuid(server_uid,client_uid);
-            setregid(server_uid,client_gid);
+            // setreuid(server_uid,client_uid);
+            // setregid(server_uid,client_gid);
+            // seteuid(server_uid);
+            // setegid(server_uid);
+
+            if(seteuid(server_uid) < 0)
+            {  
+                perror("could not change back to root: seteuid()");
+                exit(EXIT_FAILURE);  
+            }
+            if(setegid(server_uid) < 0)
+            {
+                perror("could not change back to root: setegid()");
+                exit(EXIT_FAILURE);  
+            }
+            if(setregid(server_uid,server_uid) < 0)
+            {
+                perror("could not change back to root: setregid()");
+                exit(EXIT_FAILURE);  
+            }
+            if(setreuid(server_uid,server_uid) < 0 )
+            {
+                perror("could not change back to root: setreuid()");
+                exit(EXIT_FAILURE);  
+            }
 
             printf("Back to root\n");
             printf("User id: %d\n",getuid());
@@ -229,6 +275,7 @@ void *client_handler(void *socket)
             printf("Effective Group id: %d\n",getegid());
 
             break;
+
         }
         else if(size == -1)
         {

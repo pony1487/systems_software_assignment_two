@@ -5,6 +5,8 @@
 #include <arpa/inet.h> 
 #include <unistd.h>  
 #include <sys/types.h>
+#include <pwd.h>
+#include <grp.h>
 
 #define FILE_BUFFER_SIZE 512
 #define UID_SIZE 10
@@ -19,7 +21,8 @@ typedef struct message{
     char gid[GID_SIZE];
     char ueid[UEID_SIZE];
     char geid[GEID_SIZE];
-    char filename[FILENAME_SIZE]; 
+    char filename[FILENAME_SIZE];
+
 }client_message;
 
 void commandLoop();
@@ -61,6 +64,16 @@ int main(int argc , char *argv[])
         
         printf("This process is associated with UID: %d and GID: %d\n",uid,gid);
         printf("This process is associated with UEID: %d and GEID: %d\n",ueid,geid);
+
+        //get users group name
+        struct group *grp;
+        struct passwd *pwd;
+
+        grp = getgrgid(gid);
+        printf("group: %s\n", grp->gr_name);
+
+        pwd = getpwuid(uid);
+        printf("username: %s\n", pwd->pw_name);
 
         //get the file name and path from cmd line args
         strcpy(filename,  argv[1]);
@@ -162,6 +175,7 @@ int main(int argc , char *argv[])
     }//end argv check
 }
 
+//not used
 void commandLoop()
 {
     char *userInput;
