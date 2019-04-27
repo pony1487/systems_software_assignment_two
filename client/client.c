@@ -14,6 +14,8 @@
 #define UEID_SIZE 10
 #define GEID_SIZE 10
 #define FILENAME_SIZE 50
+#define GROUPNAME_SIZE 50
+
 
 
 typedef struct message{
@@ -21,13 +23,15 @@ typedef struct message{
     char gid[GID_SIZE];
     char ueid[UEID_SIZE];
     char geid[GEID_SIZE];
+    char groupname[GROUPNAME_SIZE];
     char filename[FILENAME_SIZE];
 
 }client_message;
 
 void commandLoop();
 char *getUserInput(void);
-char * int_to_string(int id);
+char *int_to_string(int id);
+char *get_group_name_from_gid(int); 
  
 int main(int argc , char *argv[])
 {
@@ -69,11 +73,31 @@ int main(int argc , char *argv[])
         struct group *grp;
         struct passwd *pwd;
 
-        grp = getgrgid(gid);
-        printf("group: %s\n", grp->gr_name);
+        gid_t supp_groups[] = {};
 
+        int ngroups = 10;
+        gid_t *groups;
+        groups = malloc(ngroups * sizeof(gid_t));
+
+        grp = getgrgid(gid);
         pwd = getpwuid(uid);
-        printf("username: %s\n", pwd->pw_name);
+
+        printf("-----------------------------------\n");            
+
+        if(getgrouplist(pwd->pw_name,uid,groups,&ngroups) == -1)
+        {
+            perror("Could not get groups");
+        }
+
+        printf("Group List:\n");
+        for(int i = 0; i < ngroups; i++)
+        {
+            supp_groups[i] = groups[i];
+            printf("%d\n",supp_groups[i]);
+            printf("%s\n",get_group_name_from_gid(supp_groups[i]));
+        }
+
+        printf("-----------------------------------\n");
 
         //get the file name and path from cmd line args
         strcpy(filename,  argv[1]);
@@ -85,6 +109,10 @@ int main(int argc , char *argv[])
         strcpy(msg.gid,gid_as_str);
         strcpy(msg.ueid,ueid_as_str);
         strcpy(msg.geid,geid_as_str);
+        //ignore the 1st group which is the users name
+        strcpy(msg.groupname,get_group_name_from_gid(supp_groups[1]));
+
+        printf("msg.groupname: %s\n",msg.groupname);
 
         //create the path to filename provided
         strcat(path, filename);
@@ -205,4 +233,12 @@ char * int_to_string(int id)
     
     return int_as_str;
 }
+
+char *get_group_name_from_gid(int gid)
+{
+    struct group *grp;
+    grp = getgrgid(gid);
+    return grp->gr_name;
+}
+
 

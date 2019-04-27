@@ -17,7 +17,7 @@
 #define UEID_SIZE 10
 #define GEID_SIZE 10
 #define FILENAME_SIZE 50
-
+#define GROUPNAME_SIZE 50
 
 
 typedef struct message{
@@ -25,6 +25,7 @@ typedef struct message{
     char gid[GID_SIZE];
     char ueid[UEID_SIZE];
     char geid[GEID_SIZE];
+    char groupname[GROUPNAME_SIZE];
     char filename[FILENAME_SIZE]; 
 }client_message;
 
@@ -33,6 +34,8 @@ void *client_handler(void *socket);
 void sighandler(int);
 void check_client_permissions(char*,char*);
 char *get_username_from_uid(gid_t);
+void add_slash_to_string(char*, char);
+char *create_file_path(char*,char*,char*);
  
 int main(int argc , char *argv[])
 {
@@ -142,6 +145,7 @@ void *client_handler(void *socket)
         //recieve client struct
         client_message received_message;
         int size;
+        char client_group[GROUPNAME_SIZE];
 
         if( (size = recv ( sock, (void*)&received_message, sizeof(client_message), 0)) >= 0)
         {
@@ -152,16 +156,18 @@ void *client_handler(void *socket)
             printf("clients geid: %s\n",received_message.geid);
 
             write(sock , "success" , strlen("success"));
-            //store clients ids
+            //store clients ids and groupname
             client_uid = atoi(received_message.uid);
             client_gid = atoi(received_message.gid);
             client_ueid = atoi(received_message.ueid);
             client_geid = atoi(received_message.ueid);
+            strcpy(client_group,received_message.groupname);
 
             const char *username = get_username_from_uid(client_uid);
 
             printf("-----------------------------------\n");            
-            printf("Username: %s\n",username);
+            printf("Client Username: %s\n",username);
+            printf("Client Group: %s\n",client_group);
 
             if(getgrouplist(username,client_uid,groups,&ngroups) == -1)
             {
@@ -180,12 +186,6 @@ void *client_handler(void *socket)
 
             //change to the clients id and try to execute the transfer
             setgroups(ngroups,supp_groups);
-
-            // the below fails
-            // setreuid(client_uid,server_uid);
-            // setregid(client_gid,server_uid);
-            // seteuid(client_uid);
-            // setegid(client_uid);
 
             if(setreuid(client_uid,server_uid) < 0 )
             {
@@ -217,8 +217,14 @@ void *client_handler(void *socket)
             printf("Effective Group id: %d\n",getegid());
 
             char file_buffer[RECV_FILE_BUFF_SIZE];
-            char file_name[] = "/home/ronan/Documents/College/SystemsSoftware/AssignmentTwo/server/intranet/Marketing/test_test.txt";
-            FILE *file_open = fopen(file_name, "w");
+            char test_path[] = "/home/ronan/Documents/College/SystemsSoftware/AssignmentTwo/server/intranet/Marketing/test_test.txt";
+
+            // //create file path
+            char intranet_path[] = "/home/ronan/Documents/College/SystemsSoftware/AssignmentTwo/server/intranet/";
+            char *file_path = create_file_path(intranet_path,client_group,received_message.filename);
+            printf("%s\n",file_path);
+
+            FILE *file_open = fopen(file_path, "w");
 
             if(file_open == NULL)
             {
@@ -237,16 +243,12 @@ void *client_handler(void *socket)
                 }
 
                 fclose(file_open);
+                free(file_path);
                 printf("-----------------------------------\n");
 
             }
 
             //switch back to root
-            // setreuid(server_uid,client_uid);
-            // setregid(server_uid,client_gid);
-            // seteuid(server_uid);
-            // setegid(server_uid);
-
             if(seteuid(server_uid) < 0)
             {  
                 perror("could not change back to root: seteuid()");
@@ -284,6 +286,7 @@ void *client_handler(void *socket)
 
 
     }
+
  
 }
 
@@ -310,4 +313,24 @@ void sighandler(int signum)
 {
    printf("Caught signal %d, closing...\n", signum);
    exit(1);
+}
+
+void add_slash_to_string(char* str, char c)
+{
+        int len = strlen(str);
+        str[len] = c;
+        str[len+1] = '\0';
+}
+
+char *create_file_path(char* dir_path,char* group_name,char* file_name)
+{
+        add_slash_to_string(group_name,'/');
+
+        char *full_file_path = malloc((strlen(dir_path) +strlen(group_name) + strlen(file_name) + 1)*sizeof(char));
+
+        strcat(dir_path,group_name);
+        strcat(dir_path,file_name);
+        strcpy(full_file_path,dir_path);
+
+        return full_file_path;
 }
