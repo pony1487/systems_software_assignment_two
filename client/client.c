@@ -15,7 +15,7 @@
 #define GEID_SIZE 10
 #define FILENAME_SIZE 50
 #define GROUPNAME_SIZE 50
-
+#define DEST_FOLDER_NAME_SIZE 50
 
 
 typedef struct message{
@@ -25,7 +25,7 @@ typedef struct message{
     char geid[GEID_SIZE];
     char groupname[GROUPNAME_SIZE];
     char filename[FILENAME_SIZE];
-
+    char dest_folder_name[DEST_FOLDER_NAME_SIZE];
 }client_message;
 
 void commandLoop();
@@ -35,9 +35,9 @@ char *get_group_name_from_gid(int);
  
 int main(int argc , char *argv[])
 {
-    if(argc != 3)
+    if(argc != 4)
     {
-        printf("Exiting!!! Usage: filename pathname\n");
+        printf("Exiting!!! Usage: 1)filename. 2)Local pathname. 3)Destination pathname \n");
         exit(EXIT_FAILURE);   
     }
     else
@@ -100,7 +100,7 @@ int main(int argc , char *argv[])
         printf("-----------------------------------\n");
 
         //get the file name and path from cmd line args
-        strcpy(filename,  argv[1]);
+        strcpy(filename, argv[1]);
         strcpy(path, argv[2]);
 
         //fill message struct
@@ -111,8 +111,7 @@ int main(int argc , char *argv[])
         strcpy(msg.geid,geid_as_str);
         //ignore the 1st group which is the users name
         strcpy(msg.groupname,get_group_name_from_gid(supp_groups[1]));
-
-        printf("msg.groupname: %s\n",msg.groupname);
+        strcpy(msg.dest_folder_name,argv[3]);
 
         //create the path to filename provided
         strcat(path, filename);
@@ -184,7 +183,6 @@ int main(int argc , char *argv[])
                         bzero(file_buffer, FILE_BUFFER_SIZE);
                         counter++;
                     }
-
                     break;
                 }
                 else

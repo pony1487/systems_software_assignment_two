@@ -18,6 +18,8 @@
 #define GEID_SIZE 10
 #define FILENAME_SIZE 50
 #define GROUPNAME_SIZE 50
+#define DEST_FOLDER_NAME_SIZE 50
+
 
 
 typedef struct message{
@@ -27,6 +29,7 @@ typedef struct message{
     char geid[GEID_SIZE];
     char groupname[GROUPNAME_SIZE];
     char filename[FILENAME_SIZE]; 
+    char dest_folder_name[DEST_FOLDER_NAME_SIZE];
 }client_message;
 
 
@@ -146,6 +149,7 @@ void *client_handler(void *socket)
         client_message received_message;
         int size;
         char client_group[GROUPNAME_SIZE];
+        char dest_folder[DEST_FOLDER_NAME_SIZE];
 
         if( (size = recv ( sock, (void*)&received_message, sizeof(client_message), 0)) >= 0)
         {
@@ -155,19 +159,23 @@ void *client_handler(void *socket)
             printf("clients ueid: %s\n",received_message.ueid);
             printf("clients geid: %s\n",received_message.geid);
 
+            // let client know message recieved
             write(sock , "success" , strlen("success"));
+
             //store clients ids and groupname
             client_uid = atoi(received_message.uid);
             client_gid = atoi(received_message.gid);
             client_ueid = atoi(received_message.ueid);
             client_geid = atoi(received_message.ueid);
             strcpy(client_group,received_message.groupname);
+            strcpy(dest_folder,received_message.dest_folder_name);
 
             const char *username = get_username_from_uid(client_uid);
 
             printf("-----------------------------------\n");            
             printf("Client Username: %s\n",username);
             printf("Client Group: %s\n",client_group);
+            printf("Client sending to: %s\n",dest_folder);
 
             if(getgrouplist(username,client_uid,groups,&ngroups) == -1)
             {
@@ -217,11 +225,9 @@ void *client_handler(void *socket)
             printf("Effective Group id: %d\n",getegid());
 
             char file_buffer[RECV_FILE_BUFF_SIZE];
-            char test_path[] = "/home/ronan/Documents/College/SystemsSoftware/AssignmentTwo/server/intranet/Marketing/test_test.txt";
-
-            // //create file path
+            //create file path
             char intranet_path[] = "/home/ronan/Documents/College/SystemsSoftware/AssignmentTwo/server/intranet/";
-            char *file_path = create_file_path(intranet_path,client_group,received_message.filename);
+            char *file_path = create_file_path(intranet_path,dest_folder,received_message.filename);
             printf("%s\n",file_path);
 
             FILE *file_open = fopen(file_path, "w");
@@ -245,7 +251,6 @@ void *client_handler(void *socket)
                 fclose(file_open);
                 free(file_path);
                 printf("-----------------------------------\n");
-
             }
 
             //switch back to root
