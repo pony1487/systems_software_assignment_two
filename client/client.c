@@ -160,35 +160,42 @@ int main(int argc , char *argv[])
                     exit(EXIT_FAILURE);
                 }
 
-                //Receive a reply from the server
-                if( recv(SID , serverMessage , 500 , 0) < 0)
+                while((block_size = fread(file_buffer, sizeof(char), FILE_BUFFER_SIZE, fp)) > 0) 
                 {
-                    printf("IO error");
-                }
-
-                int ret = strcmp(serverMessage, "success");
-
-                if(ret == 0) 
-                {
-                    printf("Server init: %s\n",serverMessage);
-                    memset(serverMessage, 0, 500);
-
-                    while((block_size = fread(file_buffer, sizeof(char), FILE_BUFFER_SIZE, fp)) > 0) 
+                    printf("Data Sent %d = %d\n",counter, block_size);
+                    if(send(SID, file_buffer, block_size, 0) < 0) 
                     {
-                        printf("Data Sent %d = %d\n",counter, block_size);
-                        if(send(SID, file_buffer, block_size, 0) < 0) 
-                        {
-                            exit(1);
-                        }
-                        bzero(file_buffer, FILE_BUFFER_SIZE);
-                        counter++;
+                        exit(1);
                     }
-                    break;
+                    bzero(file_buffer, FILE_BUFFER_SIZE);
+                    counter++;
                 }
-                else
-                {
-                    printf("Server init not successful\n");
-                } 
+
+                //couldnt get this working
+                // memset(serverMessage, 0, 500);
+                // //Receive a reply from the server
+                // if( recv(SID , serverMessage , 500 , 0) < 0)
+                // {
+                //     perror("IO error");
+                // }
+
+                // int ret = strcmp(serverMessage, "success");
+
+                // if(ret == 0)
+                // {
+                //     printf("File transfered successfully\n");
+                //     break;
+                // }
+                // else
+                // {
+                //     printf("You do not have permission to send files to the %s folder\n",argv[3]);
+                //     break;
+                // }
+
+                //testing mutex. Wait 5 seconds and run another client
+                //sleep(5);
+
+                break;
             }
 
             //Clean up

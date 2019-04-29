@@ -21,6 +21,7 @@
 #define DEST_FOLDER_NAME_SIZE 50
 
 
+pthread_mutex_t lock_x;
 
 typedef struct message{
     char uid[UID_SIZE];
@@ -104,6 +105,11 @@ int main(int argc , char *argv[])
         perror("Can't establish connection");
         return 1;
     } 
+
+    for(int i = 0; i < client_count;i++)
+    {
+        pthread_join(threads[i],NULL);
+    }
               
     return 0;
 }
@@ -158,9 +164,6 @@ void *client_handler(void *socket)
             printf("clients gid: %s\n",received_message.gid);
             printf("clients ueid: %s\n",received_message.ueid);
             printf("clients geid: %s\n",received_message.geid);
-
-            // let client know message recieved
-            write(sock , "success" , strlen("success"));
 
             //store clients ids and groupname
             client_uid = atoi(received_message.uid);
@@ -230,11 +233,15 @@ void *client_handler(void *socket)
             char *file_path = create_file_path(intranet_path,dest_folder,received_message.filename);
             printf("%s\n",file_path);
 
+            //lock file while thread is using it
+            pthread_mutex_lock(&lock_x);
+
             FILE *file_open = fopen(file_path, "w");
 
             if(file_open == NULL)
             {
                 perror("File Cannot be opened file on server.");
+                write(sock , "failure" , strlen("failure"));
             }
             else 
             {
@@ -251,6 +258,9 @@ void *client_handler(void *socket)
                 fclose(file_open);
                 free(file_path);
                 printf("-----------------------------------\n");
+
+                pthread_mutex_unlock(&lock_x);
+
             }
 
             //switch back to root
@@ -280,7 +290,8 @@ void *client_handler(void *socket)
             printf("Group id: %d\n",getgid());
             printf("Effective User id: %d\n",geteuid());
             printf("Effective Group id: %d\n",getegid());
-
+            
+            //write(sock , "success" , strlen("success"));
             break;
 
         }
@@ -290,9 +301,8 @@ void *client_handler(void *socket)
         }
 
 
-    }
-
- 
+    }//end while
+    pthread_exit(NULL);
 }
 
 char *get_username_from_uid(gid_t uid)
